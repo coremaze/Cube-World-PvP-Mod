@@ -1,4 +1,12 @@
-[ENABLE]
+<?xml version="1.0" encoding="utf-8"?>
+<CheatTable>
+  <CheatEntries>
+    <CheatEntry>
+      <ID>46</ID>
+      <Description>"PvP - /pvp in chat to toggle"</Description>
+      <LastState/>
+      <VariableType>Auto Assembler Script</VariableType>
+      <AssemblerScript>[ENABLE]
 //This script is supposed to allow PvP between
 //any two players who have activated it.
 //
@@ -182,3 +190,7 @@ dealloc(CommandInjection)
 "Cube.exe"+7E4E9:
 	je Cube.exe+7E61A
 	//Alt: db 0F 84 2B 01 00 00
+</AssemblerScript>
+    </CheatEntry>
+  </CheatEntries>
+</CheatTable>

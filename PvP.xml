@@ -1,0 +1,184 @@
+[ENABLE]
+//This script is supposed to allow PvP between
+//any two players who have activated it.
+//
+//Be ethical.
+
+//CanDoDamage------------------------------------------------------------------
+alloc(CanDoDamageInjection,2048)
+label(CanDoDamageReturnPoint)
+label(ExitCanDoDamageInjection)
+
+CanDoDamageInjection: //CanDoDamage
+	//////////////////////Load necessary values
+	mov al, [esi+78]    //attacker PvP state
+    and al, 01          //
+	mov cl, [edi+78]    //opponent PvP state
+    and cl, 01          //
+	//////////////////////
+
+	////////////////////////
+	cmp al, 01//attacker  //
+	jne nopvp             //Leave if either entity does not have PvP
+	cmp cl, 01//opponent  //
+	jne nopvp             //
+	////////////////////////
+
+	jmp Cube.exe+198927//Return 1 if both have PvP
+
+nopvp:
+	/////////////////////
+	mov al, [esi+60]   //Restore al and cl to how they were before
+	mov cl, [edi+60]   //
+	/////////////////////
+
+	///////////////////////
+	push ebx             //
+	cmp al,01            //Original code
+	jne Cube.exe+1988E3  //
+	///////////////////////
+
+ExitCanDoDamageInjection:
+    jmp CanDoDamageReturnPoint
+
+//Injection point
+"Cube.exe"+1988C6:
+    jmp CanDoDamageInjection
+
+CanDoDamageReturnPoint:
+
+
+
+//Add Command------------------------------------------------------------------
+alloc(CommandInjection,2048)
+label(returnhere)
+label(defaultroute)
+label(exit)
+
+CommandInjection:
+
+	//////////////////////Managing original code
+	je check_pvp        //jump if command was not /namepet
+	jmp Cube.exe+7E4EF  //namepet
+	//////////////////////
+
+check_pvp:
+	///////////////////////
+	lea eax,[ebp-50]     //
+	push pvpcommand      //
+	push eax             //
+	call Cube.exe+39190  //Check if command is /pvp
+	add esp,08           //
+                         //
+	test al,al           //
+	jnz toggle_pvp       //jump to toggle_pvp if it was /pvp
+	///////////////////////If not, continue to defaultroute
+
+defaultroute:
+	jmp Cube.exe+7E61A //default route (Speak in chat)
+
+exit:
+	jmp returnhere
+
+toggle_pvp:
+	///////////
+	push eax //Preserve registers
+	push esi //
+	///////////
+
+	call get_local_entity_address //get player address
+	mov esi, eax//esi now contains player pointer
+
+    ////////////////////////////////////////
+    cmp [defaultheadsize],0               //
+    jne skipdefault                       //Set default head size if not set
+    call save_head                        //
+    ////////////////////////////////////////
+
+skipdefault: //skip setting default head size
+	/////////////////////////////
+	cmp byte ptr [esi+78], 01  //Check if pvp is already on
+	jz pvp_on                  //
+	/////////////////////////////
+
+	/////////////////////////////
+	mov byte [esi+78], 01      //Turn PvP on if it was off
+	call enlarge_head          //Enlarge head
+	/////////////////////////////
+
+	jmp finish //Leave
+
+pvp_on: //If pvp was already on
+	////////////////////////
+	mov byte [esi+78], 00 //Turn PvP off if it was on
+	call shrink_head      //Shrink head
+	////////////////////////
+
+finish: //Leave
+
+	///////////
+	pop esi  //Restore registers
+	pop eax  //
+	///////////
+
+	jmp Cube.exe+7E6BF
+
+
+//Subroutines
+get_local_entity_address://get pointer to entity
+	//no parameters
+	mov eax,["Cube.exe"+0036b1c8]
+	add eax, 39C
+	mov eax, [eax]
+	ret //entity address will be returned
+
+enlarge_head:
+	//entity address expected in esi
+	movss xmm0, [defaultheadsize] //Using extra variable in case pvp byte gets manually switched
+	movss xmm1, [head_multiplier]
+	mulss xmm0, xmm1 //I sure hope these aren't being used already
+	movss [esi+9C],xmm0
+	ret
+
+shrink_head:
+	//entity address expected in esi
+	movss xmm0, [defaultheadsize]//It should be impossible for this to matter, but just in case
+	movss [esi+9C],xmm0
+	ret
+
+save_head:
+    movss xmm0, [esi+9C]
+    movss [defaultheadsize], xmm0
+    ret
+
+
+
+
+//Data
+pvpcommand:
+	db 2F 00 70 00 76 00 70 00 00 00//"/pvp",00 in unicode
+head_multiplier:
+	dd (float)1.35
+defaultheadsize:
+    dd (float)0.0
+
+
+
+//Injection point
+"Cube.exe"+7E4E9:
+	jmp CommandInjection
+	nop
+
+returnhere:
+
+
+[DISABLE]
+"Cube.exe"+1988C6:
+	push ebx
+	cmp al,01
+	jne Cube.exe+1988E3
+	//Alt: db 53 3C 01 75 18
+dealloc(CommandInjection)
+"Cube.exe"+7E4E9:
+	je Cube.exe+7E61A
+	//Alt: db 0F 84 2B 01 00 00
